@@ -91,6 +91,7 @@ pub fn main() !void {
                 continue :main_loop;
             }
         }
+        // here please check the same cell
 
         std.Thread.sleep(time);
     }
