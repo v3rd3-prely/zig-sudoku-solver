@@ -34,7 +34,7 @@ fn readTable(filepath: []const u8) ![9][9]u5 {
     return table;
 }
 
-fn displayTable(table: [9][9]u5, idx: ?u8) !void {
+fn displayTable(table: *const [9][9]u5, idx: ?u8) !void {
     // std.debug.print("\x1B[2J\x1B[H", .{});
     const i: u8 = if (idx) |id| id / 9 else 9;
     const j: u8 = if (idx) |id| id % 9 else 9;
@@ -62,7 +62,7 @@ fn displayTable(table: [9][9]u5, idx: ?u8) !void {
     }
 }
 
-fn isElementValid(table: [9][9]u5, i: u8, j: u8) bool {
+fn isElementValid(table: *const [9][9]u5, i: u8, j: u8) bool {
     for (0..9) |a| {
         if (a == j) continue;
         if (table[i][j] & 0xf == table[i][a] & 0xf) {
@@ -101,7 +101,7 @@ pub fn main() !void {
         const j = idx % 9;
 
         std.debug.print("\x1B[2J\x1B[H", .{});
-        try displayTable(table, idx);
+        try displayTable(&table, idx);
         std.debug.print("index = {d}\nposition : {d},{d}\nvalue: {d}\n", .{ idx, j, i, table[i][j] & 0xf });
         idx = (idx + 1);
         if (table[i][j] & 0x10 != 0) continue :main_loop;
@@ -115,7 +115,7 @@ pub fn main() !void {
             table[idx / 9][idx % 9] += 1;
             continue :main_loop;
         }
-        if (!isElementValid(table, i, j)) {
+        if (!isElementValid(&table, i, j)) {
             table[i][j] += 1;
             std.Thread.sleep(time);
             idx -= 1;
@@ -125,5 +125,5 @@ pub fn main() !void {
         std.Thread.sleep(time);
         if (idx == 81) break :main_loop;
     }
-    try displayTable(originalTable, null);
+    try displayTable(&originalTable, null);
 }
