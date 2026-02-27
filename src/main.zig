@@ -105,9 +105,11 @@ fn isElementValid(table: *const [9][9]u16, i: u8, j: u8) bool {
     return true;
 }
 
-fn new_solve(table: *[9][9]u16) void {
-    // var table = tble;
-    clearScreen();
+var depth: i64 = 0;
+
+fn new_solve(solution: *[9][9]u16, original: *[9][9]u16) bool {
+    var table = original.*;
+    // clearScreen();
     var rows: [9]u16 = undefined;
     var cols: [9]u16 = undefined;
     var cells: [9]u16 = undefined;
@@ -116,6 +118,7 @@ fn new_solve(table: *[9][9]u16) void {
     rows = .{0} ** 9;
     cols = .{0} ** 9;
     cells = .{0} ** 9;
+    var minPossible: u8 = 9;
     for (0..9) |y| {
         for (0..9) |x| {
             if (isMutable(table[y][x])) {
@@ -134,9 +137,10 @@ fn new_solve(table: *[9][9]u16) void {
         // std.debug.print("{b:0>10}, {b:0>10}, {b:0>10}\n", .{ rows[i], cols[i], cells[i] });
     }
     while (numbersLeft != prevNumbers and numbersLeft != 0) {
+        minPossible = 9;
         prevNumbers = numbersLeft;
         numbersLeft = 0;
-        displayTable(table, null);
+        // displayTable(&table, null);
         // for (0..9) |i| {
         //     std.debug.print("{b}, {b}, {b}\n", .{ rows[i], cols[i], cells[i] });
         // }
@@ -164,34 +168,66 @@ fn new_solve(table: *[9][9]u16) void {
                 table[y][x] &= rows[y] & cols[x] & cells[x / 3 + y / 3 * 3];
 
                 // table[y][x] = ~table[y][x] & 0b1111111110;
+                if (minPossible > @popCount(table[y][x])) {
+                    minPossible = @popCount(table[y][x]);
+                }
+
+                // std.debug.print("Minium possible: {d}\n", .{minPossible});
                 // std.debug.print("{d},{d}: {d} {b}\n", .{ y, x, @popCount(table[y][x]), table[y][x] });
                 if (@popCount(table[y][x]) == 1) {
                     rows[y] &= ~table[y][x];
                     cols[x] &= ~table[y][x];
                     cells[x / 3 + y / 3 * 3] &= ~table[y][x];
                     table[y][x] += 1;
+                } else if (table[y][x] == 0) {
+                    // std.debug.print("Impossible\n", .{});
+                    return false;
                 } else {
-                    table[y][x] = 0b1111111110;
+                    // table[y][x] = 0b1111111110;
                 }
             }
         }
         // for (0..9) |i| {
         //     std.debug.print("{b:0>10}, {b:0>10}, {b:0>10}\n", .{ rows[i], cols[i], cells[i] });
         // }
-        std.debug.print("Numbers left: {d}\n", .{numbersLeft});
+        // std.debug.print("Numbers left: {d}\nMin poss: {d}\n\n", .{ numbersLeft, minPossible });
     }
-    solve(table);
-    // if (numbersLeft == 0) return numbersLeft;
-    // for (0..9) |y| {
-    //     for (0..9) |x| {
-    //         if (!isMutable(table[y][x])) continue;
-    //         for (0..9) |i|{
-    //
-    //         }
-    //     }
-    // }
-    // return numbersLeft;
-    // displayTable(table, null);
+    // solve(table);
+    if (numbersLeft == 0) {
+        @memcpy(solution, &table);
+        return true;
+    }
+    // std.Thread.sleep(1_000_000_000);
+    depth += 1;
+    // std.debug.print("Branching {d} ..\n\n", .{depth});
+    var sol: [9][9]u16 = undefined;
+    var branch: [9][9]u16 = undefined;
+    var val: u16 = undefined;
+    @memcpy(&branch, &table);
+    outer: for (0..9) |i| {
+        for (0..9) |j| {
+            if (!isMutable(branch[i][j])) continue;
+            // std.debug.print("{d}, {d}: {b:0>16}, pop:{d}, min:{d}\n", .{ i, j, branch[i][j], @popCount(branch[i][j]), minPossible });
+            if (@popCount(branch[i][j]) != minPossible) continue;
+            val = branch[i][j];
+            while (branch[i][j] != 0) {
+                const lshift: u4 = @truncate(decodeValue(branch[i][j]));
+                branch[i][j] = branch[i][j] & ((@as(u16, 1) << lshift)) | 1;
+                // std.debug.print("Trying branch {d}:\n", .{depth});
+                // displayTable(&branch, @as(u8, @truncate(i * 9 + j)));
+                if (new_solve(&sol, &branch)) {
+                    @memcpy(solution, &sol);
+                    return true;
+                } else {
+                    val = val ^ (@as(u16, 1) << lshift);
+                    branch[i][j] = val;
+                }
+            }
+            break :outer;
+        }
+    }
+    depth -= 1;
+    return false;
 }
 
 fn solve(table: *[9][9]u16) void {
@@ -237,10 +273,12 @@ fn solve(table: *[9][9]u16) void {
 
 pub fn main() !void {
     var table = try readTable("extreme.in");
-    const originalTable = table;
     _ = &table;
+    var solution: [9][9]u16 = undefined;
     // var w: std.io.Writer = .fixed(&buffer);
     // solve(&table);
-    new_solve(&table);
-    displayTable(&originalTable, null);
+    std.debug.print("Solved: {any}\n", .{new_solve(&solution, &table)});
+
+    displayTable(&solution, null);
+    displayTable(&table, null);
 }
